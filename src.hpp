@@ -12,8 +12,31 @@ private:
     int int_val;
     std::shared_ptr<std::vector<pylist>> list_val;
 
+    static std::vector<std::weak_ptr<std::vector<pylist>>>& get_allocated() {
+        static std::vector<std::weak_ptr<std::vector<pylist>>> allocated;
+        return allocated;
+    }
+
+    struct GC {
+        ~GC() {
+            for (auto& wp : get_allocated()) {
+                if (auto sp = wp.lock()) {
+                    sp->clear();
+                }
+            }
+        }
+    };
+
+    static GC& get_gc() {
+        static GC gc;
+        return gc;
+    }
+
 public:
-    pylist() : type(LIST), int_val(0), list_val(std::make_shared<std::vector<pylist>>()) {}
+    pylist() : type(LIST), int_val(0), list_val(std::make_shared<std::vector<pylist>>()) {
+        get_allocated().push_back(list_val);
+        get_gc();
+    }
     pylist(int v) : type(INT), int_val(v), list_val(nullptr) {}
 
     operator int() const { return int_val; }
